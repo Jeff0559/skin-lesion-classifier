@@ -209,7 +209,7 @@ def train_and_evaluate(
     best_model  = models[best_name]
     best_path   = MODELS_DIR / f"ml_{best_name}_best.pkl"
     joblib.dump(best_model, best_path)
-    print(f"\n[+] Best model: {best_name} (F1={best_report["f1_macro"]:.3f}, AUC={best_report["roc_auc"]:.3f})")
+    print(f"\n[+] Best model: {best_name} (F1={best_report['f1_macro']:.3f}, AUC={best_report['roc_auc']:.3f})")
     print(f"[+] Saved to {best_path}")
 
     # ── Save results ──────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ def train_and_evaluate(
     print("  FINAL RESULTS")
     print("="*60)
     for r in reports:
-        print(f"  {r["model"]:25s} | F1={r["f1_macro"]:.3f} | AUC={r["roc_auc"]:.3f}")
+        print(f"  {r['model']:25s} | F1={r['f1_macro']:.3f} | AUC={r['roc_auc']:.3f}")
 
     return results
 
