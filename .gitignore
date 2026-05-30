@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb~
+
+# Data - never commit raw data
+data/raw/
+data/interim/
+data/processed/
+*.csv
+*.parquet
+*.h5
+*.hdf5
+
+# Models - large files
+models/
+*.pth
+*.pt
+*.pkl
+*.joblib
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+wandb/
+mlruns/
+
+# API Keys - NEVER commit
+*.key
+secrets/
