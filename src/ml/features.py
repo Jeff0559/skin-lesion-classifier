@@ -96,7 +96,7 @@ def get_cv_probs_from_checkpoint(
     Run ResNet50 inference on all images in df and return probability matrix.
     Only run once and cache results.
     """
-    cache_path = Path(model_path).parent / f"cv_probs_{Path(model_path).stem}.npy"
+    cache_path = Path(model_path).parent / f"cv_probs_{Path(model_path).stem}_{len(df)}.npy"
     if cache_path.exists():
         print(f"[+] Loading cached CV probs from {cache_path}")
         return np.load(cache_path)
@@ -122,7 +122,7 @@ def get_cv_probs_from_checkpoint(
     model  = load_model(model_path, device=device)
     model.eval()
     ds     = SimpleDataset(df["image_path"].tolist(), get_val_transforms())
-    loader = DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=2)
+    loader = DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=0)
 
     all_probs = []
     with torch.no_grad():

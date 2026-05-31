@@ -72,17 +72,49 @@ class SkinLesionResNet50(nn.Module):
         return torch.softmax(logits, dim=-1)
 
 
+class _ColabResNet50(nn.Module):
+    """Matches checkpoint saved in Colab: flat ResNet keys + fc Sequential head (2048→num_classes)."""
+    def __init__(self, num_classes: int = NUM_CLASSES):
+        super().__init__()
+        backbone = models.resnet50(weights=None)
+        self.conv1   = backbone.conv1
+        self.bn1     = backbone.bn1
+        self.relu    = backbone.relu
+        self.maxpool = backbone.maxpool
+        self.layer1  = backbone.layer1
+        self.layer2  = backbone.layer2
+        self.layer3  = backbone.layer3
+        self.layer4  = backbone.layer4
+        self.avgpool = backbone.avgpool
+        self.fc      = nn.Sequential(nn.Dropout(0.4), nn.Linear(2048, num_classes))
+
+    def forward(self, x):
+        x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
+        x = self.layer4(self.layer3(self.layer2(self.layer1(x))))
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        return self.fc(x)
+
+    def get_probabilities(self, x):
+        return torch.softmax(self.forward(x), dim=-1)
+
+
 def load_model(
     checkpoint_path: str,
     device: str = "cpu",
     num_classes: int = NUM_CLASSES,
-) -> SkinLesionResNet50:
-    """Load a trained model from checkpoint."""
-    model = SkinLesionResNet50(num_classes=num_classes)
+) -> nn.Module:
+    """Load a trained model from checkpoint, handling both local and Colab-saved formats."""
     state = torch.load(checkpoint_path, map_location=device)
-    # Handle DataParallel wrapper
     if any(k.startswith("module.") for k in state.keys()):
         state = {k.replace("module.", ""): v for k, v in state.items()}
+
+    # Detect Colab format: keys start with conv1/layer* instead of backbone.*
+    if any(k.startswith("conv1") or k.startswith("layer1") for k in state.keys()):
+        model = _ColabResNet50(num_classes=num_classes)
+    else:
+        model = SkinLesionResNet50(num_classes=num_classes)
+
     model.load_state_dict(state)
     model.to(device)
     model.eval()
