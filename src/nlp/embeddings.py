@@ -171,16 +171,50 @@ def generate_synthetic_symptom_data(n: int = 1000, seed: int = 42) -> pd.DataFra
     return pd.DataFrame(records)
 
 
-if __name__ == "__main__":
-    embedder = SymptomEmbedder()
+DX_LABEL = {
+    "mel":   "melanoma",
+    "nv":    "nevus",
+    "bcc":   "basal cell carcinoma",
+    "akiec": "actinic keratosis",
+    "bkl":   "benign keratosis",
+    "df":    "dermatofibroma",
+    "vasc":  "vascular lesion",
+}
 
-    test_texts = [
-        "Dark irregular mole growing fast, asymmetric, multiple colors",
-        "Regular brown mole, unchanged for years",
-        "Bleeding bump on nose that wont heal",
-    ]
-    for txt in test_texts:
-        result = embedder.predict_class(txt)
-        print(f"Text: {txt[:50]}...")
-        print(f"  -> {result['predicted_class']} (sim={result['confidence']:.3f})")
-        print()
+
+def build_text(row: pd.Series) -> str:
+    dx   = DX_LABEL.get(row["dx"], row["dx"])
+    loc  = str(row["localization"]).replace("_", " ") if pd.notna(row["localization"]) else "unknown location"
+    age  = f"age {int(row['age'])}" if pd.notna(row["age"]) else "unknown age"
+    sex  = str(row["sex"]) if pd.notna(row["sex"]) else "unknown"
+    return f"{dx} on {loc}, {age}, {sex}"
+
+
+if __name__ == "__main__":
+    from src.config import PROC_DIR, MODELS_DIR
+
+    dfs = []
+    for split in ("train", "val", "test"):
+        csv = PROC_DIR / f"{split}.csv"
+        if csv.exists():
+            dfs.append(pd.read_csv(csv))
+    df = pd.concat(dfs, ignore_index=True)
+    print(f"[+] Loaded {len(df)} real HAM10000 samples")
+
+    df["text"] = df.apply(build_text, axis=1)
+    print(f"[+] Example: {df['text'].iloc[0]}")
+
+    embedder   = SymptomEmbedder()
+    embeddings = embedder.precompute_dataset_embeddings(df["text"].tolist(), save_path=None)
+
+    out = MODELS_DIR / "embeddings.npz"
+    np.savez(str(out), embeddings=embeddings, labels=df["dx"].values, texts=df["text"].values)
+    import os
+    print(f"[+] Saved {embeddings.shape} → {round(os.path.getsize(out)/1024/1024, 1)} MB  →  {out}")
+
+    print("\n[+] Query test:")
+    result = embedder.predict_class("dark irregular spot growing for 6 months")
+    sims   = sorted(result["all_similarities"].items(), key=lambda x: x[1], reverse=True)
+    for cls, sim in sims:
+        print(f"  {cls:8s} {sim:.4f}")
+    print(f"  => {result['predicted_class']} (conf={result['confidence']:.4f})")
