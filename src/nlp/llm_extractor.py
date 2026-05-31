@@ -10,7 +10,7 @@ from typing import Dict, Optional, List
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from src.config import NLP_CONFIG, ANTHROPIC_API_KEY
+from src.config import NLP_CONFIG, OPENAI_API_KEY
 
 
 # ─── Extraction schema ─────────────────────────────────────────────────────────
@@ -99,55 +99,38 @@ Return JSON only."""
 
 class ClaudeSymptomExtractor:
     """
-    Approach B: Use Claude API for structured feature extraction from
+    Approach B: Use OpenAI API for structured feature extraction from
     free-text symptom descriptions.
-
-    Compares to Approach A (sentence transformers) in terms of:
-    - Extraction quality
-    - Downstream ML performance
-    - Cost and latency
     """
 
     def __init__(
         self,
-        api_key: str = ANTHROPIC_API_KEY,
-        model: str = NLP_CONFIG["anthropic_model"],
+        api_key: str = OPENAI_API_KEY,
+        model: str = "gpt-4o-mini",
         max_tokens: int = NLP_CONFIG["max_tokens"],
     ):
-        import anthropic
+        from openai import OpenAI
         if not api_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY not set. Add it to .env file."
-            )
-        self.client     = anthropic.Anthropic(api_key=api_key)
+            raise ValueError("OPENAI_API_KEY not set. Add it to .env file.")
+        self.client     = OpenAI(api_key=api_key)
         self.model      = model
         self.max_tokens = max_tokens
         self._cache     = {}
 
     def extract(self, text: str, use_cache: bool = True) -> Dict:
-        """
-        Extract structured symptom features using Claude API.
-
-        Args:
-            text: Free-text symptom description
-            use_cache: Cache results to avoid duplicate API calls
-
-        Returns:
-            dict with extracted features (see EXTRACTION_SCHEMA)
-        """
         if use_cache and text in self._cache:
             return self._cache[text]
 
-        message = self.client.messages.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=SYSTEM_PROMPT,
             messages=[
-                {"role": "user", "content": USER_TEMPLATE.format(text=text)}
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
             ],
         )
 
-        response_text = message.content[0].text.strip()
+        response_text = response.choices[0].message.content.strip()
 
         # Parse JSON (handle markdown code blocks)
         json_match = re.search(r"\{[\s\S]+\}", response_text)
@@ -249,13 +232,15 @@ CRITICAL RULES:
 5. Keep response under 200 words
 6. Be empathetic and clear"""
 
-        message = self.client.messages.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             max_tokens=300,
-            system=system_msg,
-            messages=[{"role": "user", "content": context}],
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user",   "content": context},
+            ],
         )
-        explanation = message.content[0].text
+        explanation = response.choices[0].message.content
         if disclaimer:
             explanation = f"{disclaimer}\n\n{explanation}"
         return explanation
