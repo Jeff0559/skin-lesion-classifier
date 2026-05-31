@@ -165,10 +165,10 @@ class SkinLesionPipeline:
             result["explanation"] = explanation
         else:
             result["explanation"] = (
-                f"{APP_CONFIG["disclaimer"]}\n\n"
-                f"CV Model: {HAM10000_CLASSES[cv_result["label"]]} "
-                f"(confidence: {cv_result["confidence"]:.1%})\n"
-                f"Top diagnosis: {cv_result["top_k"][0][1]}"
+                f"{APP_CONFIG['disclaimer']}\n\n"
+                f"CV Model: {HAM10000_CLASSES[cv_result['label']]} "
+                f"(confidence: {cv_result['confidence']:.1%})\n"
+                f"Top diagnosis: {cv_result['top_k'][0][1]}"
             )
 
         return result

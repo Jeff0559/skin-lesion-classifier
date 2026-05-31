@@ -103,7 +103,7 @@ def predict(
         summary = f"**Prediction: {final_nm} ({final})**\n"
         summary += f"Confidence: {conf:.1%}\n"
         if ml:
-            summary += f"Risk Score: {ml.get("risk_score", conf):.2f}\n"
+            summary += f"Risk Score: {ml.get('risk_score', conf):.2f}\n"
 
         # Top-3
         top3_text = "**Top-3 CV Predictions:**\n"
@@ -128,7 +128,7 @@ def predict(
         return chart, summary, top3_text, explanation, nlp_text
 
     except Exception as e:
-        err = f"Error: {str(e)}\n\n{APP_CONFIG["disclaimer"]}"
+        err = f"Error: {str(e)}\n\n{APP_CONFIG['disclaimer']}"
         return None, err, "", "", ""
 
 
@@ -180,12 +180,12 @@ with gr.Blocks(
     )
 
     gr.Markdown("---")
-    gr.Markdown(f"*{APP_CONFIG["disclaimer"]}*")
+    gr.Markdown(f"*{APP_CONFIG['disclaimer']}*")
 
 
 if __name__ == "__main__":
     demo.launch(
-        server_name=APP_CONFIG["host"],
+        server_name="127.0.0.1",
         server_port=APP_CONFIG["port"],
-        share=APP_CONFIG["share"],
+        share=False,
     )
