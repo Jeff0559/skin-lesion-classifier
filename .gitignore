@@ -58,3 +58,5 @@ mlruns/
 # API Keys - NEVER commit
 *.key
 secrets/
+!models/resnet50_best.pth
+!models/
