@@ -118,7 +118,7 @@ class SkinLesionPipeline:
                 self._load_nlp()
                 sim = self._nlp.similarity_to_classes(symptom_text)
                 nlp_features = {"class_similarities": sim}
-                nlp_vector   = [sim.get(c, 0.0) for c in CLASS_NAMES]
+                nlp_vector   = [sim.get(c, 0.0) for c in CLASS_NAMES] + [0.0] * 3
         else:
             nlp_vector = [0.0] * 10
         result["nlp"] = nlp_features
