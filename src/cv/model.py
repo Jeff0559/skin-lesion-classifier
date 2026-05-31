@@ -98,6 +98,12 @@ class _ColabResNet50(nn.Module):
     def get_probabilities(self, x):
         return torch.softmax(self.forward(x), dim=-1)
 
+    def get_feature_vector(self, x):
+        x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
+        x = self.layer4(self.layer3(self.layer2(self.layer1(x))))
+        x = self.avgpool(x)
+        return torch.flatten(x, 1)
+
 
 def load_model(
     checkpoint_path: str,
