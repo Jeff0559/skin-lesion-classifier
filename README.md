@@ -160,30 +160,37 @@ Detaillierte Setup-Anleitung: [SETUP.md](SETUP.md)
 
 ---
 
+## Live Demo
+
+**Hugging Face Spaces:** https://huggingface.co/spaces/Jeremie03/skin-lesion-classifier
+
+---
+
 ## Ergebnisse (nach Training)
 
-### Block 1: CV
+### Block 1: CV (ResNet50 auf HAM10000, Val-Set n=1503)
 | Metrik | Wert |
 |--------|------|
-| Test Accuracy | ~80% |
-| Macro F1 | ~0.70 |
-| Bestes Klasse | nv (0.90+) |
-| Schwierigstes Klasse | df, vasc (wenige Samples) |
+| Val Accuracy | 87% |
+| Macro F1 | 0.83 |
+| Weighted F1 | 0.87 |
+| Beste Klasse | nv (F1=0.93), vasc (F1=0.93) |
+| Schwierigste Klasse | mel (F1=0.65) |
 
-### Block 3: ML Ensemble
-| Modell | ROC-AUC | F1-Macro |
-|--------|---------|---------|
-| Logistic Regression | ~0.88 | ~0.60 |
-| Random Forest | ~0.91 | ~0.65 |
-| XGBoost | ~0.93 | ~0.67 |
+### Block 3: ML Ensemble (n=1503, alle Features)
+| Modell | ROC-AUC | F1-Macro | Accuracy |
+|--------|---------|----------|----------|
+| Logistic Regression | **0.9965** | 0.9510 | 95.3% |
+| Random Forest | 0.9957 | 0.9464 | 95.3% |
+| XGBoost | 0.9962 | 0.9374 | 94.9% |
 
 ### Ablation Study
 | Feature Group | ROC-AUC |
 |--------------|---------|
-| CV only | ~0.91 |
-| Metadata only | ~0.78 |
-| CV + Metadata | ~0.92 |
-| All Features | ~0.93 |
+| CV only | ~0.96 |
+| Metadata only | ~0.82 |
+| CV + Metadata | ~0.98 |
+| All Features (CV + Meta + NLP) | **0.9965** |
 
 ---
 

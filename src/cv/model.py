@@ -68,7 +68,11 @@ class SkinLesionResNet50(nn.Module):
 
     def get_probabilities(self, x: torch.Tensor) -> torch.Tensor:
         """Return softmax probabilities (7-dim vector per sample)."""
-        logits = self.forward(x)
+        prev_training = self.training
+        self.eval()
+        with torch.no_grad():
+            logits = self.forward(x)
+        self.train(prev_training)
         return torch.softmax(logits, dim=-1)
 
 
