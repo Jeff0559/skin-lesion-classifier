@@ -12,16 +12,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv()
 
 from src.config import (
     CV_CONFIG, APP_CONFIG, CLASS_NAMES, HAM10000_CLASSES,
-    ANTHROPIC_API_KEY,
+    ANTHROPIC_API_KEY, OPENAI_API_KEY,
 )
-
-RAW_DIR = Path(__file__).resolve().parent.parent / "data/raw/HAM10000_images_part_1"
 
 HIGH_RISK = {"mel", "bcc", "akiec"}
 RISK_COLOR = {
@@ -44,12 +42,13 @@ def get_pipeline():
         cv_path = os.getenv("CV_MODEL_PATH", CV_CONFIG["best_model"])
         ml_path = None
         for f in sorted(Path("models").glob("ml_*.pkl")):
-            ml_path = str(f); break
+            ml_path = str(f)
+            break
         _pipeline = SkinLesionPipeline(
             cv_model_path=cv_path,
             ml_model_path=ml_path,
             device=os.getenv("DEVICE", "cpu"),
-            use_llm=bool(ANTHROPIC_API_KEY),
+            use_llm=bool(OPENAI_API_KEY),
         )
     return _pipeline
 
@@ -80,52 +79,63 @@ def make_probability_chart(probabilities: dict) -> plt.Figure:
 
 def predict(image, symptom_text, age, sex, localization):
     if image is None:
-        return None, "⬆️ Bitte ein Bild hochladen.", "", "", ""
+        return None, "⬆️ Please upload an image.", "", "", ""
 
     try:
         pipeline = get_pipeline()
         metadata = {
-            "age": age, "sex": sex.lower(),
-            "localization": localization, "localization_enc": -1,
+            "age": age,
+            "sex": sex.lower(),
+            "localization": localization,
+            "localization_enc": -1,
         }
         result = pipeline.predict(
-            image=image, symptom_text=symptom_text,
+            image=image,
+            symptom_text=symptom_text,
             metadata=metadata,
-            generate_explanation=bool(symptom_text and ANTHROPIC_API_KEY),
+            generate_explanation=bool(symptom_text and OPENAI_API_KEY),
         )
 
-        cv       = result.get("cv", {})
-        ml       = result.get("ml", {})
-        final    = result.get("final_label", cv.get("label", "unknown"))
+        cv      = result.get("cv", {})
+        ml      = result.get("ml", {})
+        final   = result.get("final_label", cv.get("label", "unknown"))
         final_nm = HAM10000_CLASSES.get(final, final)
-        conf     = cv.get("confidence", 0.0)
-        is_risk  = final in HIGH_RISK
+        conf    = cv.get("confidence", 0.0)
+        is_risk = final in HIGH_RISK
 
-        risk_icon = "🔴" if is_risk else "🟢"
-        risk_label = "HOHES RISIKO" if is_risk else "GERINGES RISIKO"
+        risk_icon  = "🔴" if is_risk else "🟢"
+        risk_label = "HIGH RISK" if is_risk else "LOW RISK"
 
         summary = (
             f"## {risk_icon} {final_nm}\n"
-            f"**Klasse:** `{final}` &nbsp;|&nbsp; "
-            f"**Konfidenz:** {conf:.1%} &nbsp;|&nbsp; "
-            f"**Risiko:** {risk_label}\n\n"
+            f"**Class:** `{final}` &nbsp;|&nbsp; "
+            f"**Confidence:** {conf:.1%} &nbsp;|&nbsp; "
+            f"**Risk:** {risk_label}\n\n"
         )
         if ml:
-            ml_nm = HAM10000_CLASSES.get(ml.get('label', final), final_nm)
+            ml_nm = HAM10000_CLASSES.get(ml.get("label", final), final_nm)
             summary += f"**ML Ensemble:** {ml_nm} &nbsp;|&nbsp; Risk Score: `{ml.get('risk_score', 0):.2f}`\n"
 
-        top3_md = "### Top-3 Diagnosen\n| Klasse | Name | Wahrscheinlichkeit |\n|---|---|---|\n"
+        top3_md = "### Top-3 Diagnoses\n| Class | Name | Probability |\n|---|---|---|\n"
         for cls, name, prob in cv.get("top_k", [])[:3]:
             icon = "🔴" if cls in HIGH_RISK else "🟢"
             top3_md += f"| `{cls}` | {icon} {name} | **{prob:.1%}** |\n"
 
+        # NLP features — skip raw similarity scores
         nlp = result.get("nlp", {})
         nlp_md = ""
-        if nlp and "duration_days" in nlp:
-            nlp_md = "### Extrahierte Symptom-Features\n"
-            for k, v in nlp.items():
-                if v not in (-1, "unknown", "", None):
-                    nlp_md += f"- **{k}:** {v}\n"
+        if nlp:
+            useful = {
+                k: v for k, v in nlp.items()
+                if k != "class_similarities"
+                and v not in (-1, "unknown", "", None, False, 0)
+            }
+            if useful:
+                nlp_md = "### Extracted Symptom Features\n"
+                for k, v in useful.items():
+                    nlp_md += f"- **{k.replace('_', ' ').title()}:** {v}\n"
+            else:
+                nlp_md = "### Extracted Symptom Features\n*Text analysed — no specific features extracted.*"
 
         explanation = result.get("explanation", "")
 
@@ -134,22 +144,18 @@ def predict(image, symptom_text, age, sex, localization):
 
     except Exception as e:
         import traceback
-        return None, f"**Fehler:** {str(e)}\n```\n{traceback.format_exc()}\n```", "", "", ""
+        return None, f"**Error:** {str(e)}\n```\n{traceback.format_exc()}\n```", "", "", ""
 
-
-# ── Example images ────────────────────────────────────────────────────────────
-EXAMPLES = [
-    [str(RAW_DIR / "ISIC_0026188.jpg"), "dark irregular spot growing for months", 70, "Male",   "trunk"],
-    [str(RAW_DIR / "ISIC_0027291.jpg"), "pearly nodule on back, bleeds sometimes", 70, "Male",   "back"],
-    [str(RAW_DIR / "ISIC_0025803.jpg"), "rough scaly red patch on face",           80, "Female", "face"],
-    [str(RAW_DIR / "ISIC_0026189.jpg"), "stable brown mole, unchanged for years",  65, "Male",   "back"],
-]
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 CSS = """
-.risk-high { color: #e74c3c; font-weight: bold; }
-.disclaimer { background: #2c0000; border-left: 4px solid #e74c3c;
-              padding: 10px 16px; border-radius: 4px; color: #ffcccc; }
+.disclaimer {
+    background: #2c0000;
+    border-left: 4px solid #e74c3c;
+    padding: 10px 16px;
+    border-radius: 4px;
+    color: #ffcccc;
+}
 footer { display: none !important; }
 """
 
@@ -157,7 +163,7 @@ with gr.Blocks(title="Skin Lesion Classifier", theme=gr.themes.Soft(), css=CSS) 
 
     gr.Markdown("""
 # 🔬 Skin Lesion Classifier
-### ZHAW AI-Applications – ResNet50 + ML Ensemble + NLP
+### ZHAW AI-Applications — ResNet50 + ML Ensemble + NLP
 """)
 
     gr.HTML(f"""
@@ -167,51 +173,40 @@ with gr.Blocks(title="Skin Lesion Classifier", theme=gr.themes.Soft(), css=CSS) 
 """)
 
     with gr.Row():
-        # ── Left: Input ──────────────────────────────────────────────────────
         with gr.Column(scale=1):
             gr.Markdown("### 📤 Input")
-            image_input = gr.Image(
-                type="pil", label="Hautläsion Bild hochladen",
-                elem_id="img-upload",
-            )
+            image_input = gr.Image(type="pil", label="Upload skin lesion image")
             symptom_input = gr.Textbox(
-                label="Symptombeschreibung (optional)",
-                placeholder="z.B. dunkler unregelmässiger Fleck, wächst seit 3 Monaten, manchmal juckend...",
+                label="Symptom description (optional)",
+                placeholder="e.g. dark irregular spot growing for 6 months, occasionally itchy...",
                 lines=3,
-                info="Freitext – verbessert die ML-Ensemble-Vorhersage",
+                info="Free text — improves the ML ensemble prediction",
             )
             with gr.Row():
-                age_input = gr.Slider(0, 100, value=45, step=1, label="Alter",
-                                      info="Patientenalter in Jahren")
-                sex_input = gr.Radio(["Male", "Female"], value="Male", label="Geschlecht")
+                age_input = gr.Slider(0, 100, value=45, step=1, label="Age")
+                sex_input = gr.Radio(["Male", "Female"], value="Male", label="Sex")
             loc_input = gr.Dropdown(
-                choices=["face","scalp","neck","chest","back","trunk","abdomen",
-                         "upper extremity","lower extremity","hand","foot","unknown"],
-                value="unknown", label="Lokalisation",
-                info="Körperstelle der Läsion",
+                choices=["face", "scalp", "neck", "chest", "back", "trunk",
+                         "abdomen", "upper extremity", "lower extremity",
+                         "hand", "foot", "unknown"],
+                value="unknown",
+                label="Localization",
+                info="Body site of the lesion",
             )
-            submit_btn = gr.Button("🔍 Analysieren", variant="primary", size="lg")
+            submit_btn = gr.Button("🔍 Analyze", variant="primary", size="lg")
 
-            gr.Markdown("#### 📋 Beispiele")
-            gr.Examples(
-                examples=EXAMPLES,
-                inputs=[image_input, symptom_input, age_input, sex_input, loc_input],
-                label="Beispiel-Bilder aus HAM10000",
-            )
-
-        # ── Right: Output ────────────────────────────────────────────────────
         with gr.Column(scale=1):
-            gr.Markdown("### 📊 Ergebnisse")
-            chart_out   = gr.Plot(label="Klassenwahrscheinlichkeiten")
-            summary_out = gr.Markdown(label="Vorhersage")
+            gr.Markdown("### 📊 Results")
+            chart_out   = gr.Plot(label="Class Probabilities")
+            summary_out = gr.Markdown(label="Prediction")
             top3_out    = gr.Markdown(label="Top-3")
 
     with gr.Row():
         with gr.Column(scale=2):
-            with gr.Accordion("🤖 KI-Erklärung", open=True):
+            with gr.Accordion("🤖 AI Explanation", open=True):
                 expl_out = gr.Textbox(label="", lines=5, show_label=False)
         with gr.Column(scale=1):
-            with gr.Accordion("🧬 NLP Symptom-Features", open=False):
+            with gr.Accordion("🧬 NLP Symptom Features", open=True):
                 nlp_out = gr.Markdown()
 
     submit_btn.click(
@@ -220,12 +215,8 @@ with gr.Blocks(title="Skin Lesion Classifier", theme=gr.themes.Soft(), css=CSS) 
         outputs=[chart_out, summary_out, top3_out, expl_out, nlp_out],
     )
 
-    gr.Markdown("---\n*ZHAW School of Engineering – AI-Applications FS2025*")
+    gr.Markdown("---\n*ZHAW School of Engineering — AI-Applications FS2025*")
 
 
 if __name__ == "__main__":
-    demo.launch(
-        server_name="127.0.0.1",
-        server_port=APP_CONFIG["port"],
-        share=False,
-    )
+    demo.launch(server_name="0.0.0.0", server_port=7860)
