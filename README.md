@@ -52,6 +52,13 @@
 - All 3 AI blocks integrated into a single end-to-end pipeline
 - Working public deployment on Hugging Face Spaces
 
+**Scope & Assumptions:**
+- Input images are dermoscopy images (not regular smartphone photos); the model is trained on HAM10000 dermoscopy data
+- Symptom text input is optional — the system degrades gracefully to CV-only prediction if no text is provided
+- The system is not a medical device and makes no clinical diagnosis; it is designed as an educational decision-support tool
+- No patient data is stored; all inference is stateless and runs per-request
+- The OpenAI API key is optional; without it, NLP falls back to Sentence-Transformers (Approach A)
+
 ### 1.2 Integration Logic
 
 The three blocks are not parallel — each feeds the next:
@@ -170,6 +177,22 @@ See: `src/nlp/llm_extractor.py`, `src/nlp/embeddings.py`
 |----------|----------|---------|------|
 | A: Sentence-Transformers | 70% | ~50ms | Free |
 | B: GPT-4o-mini | **75%** | ~800ms | ~$0.001/req |
+
+**Qualitative evaluation — example outputs:**
+
+Input: *"dark irregular spot, growing for 6 months, occasionally itchy, located on back"*
+
+| Field | Approach A (cosine sim) | Approach B (GPT-4o-mini) |
+|-------|------------------------|--------------------------|
+| Top class match | mel (0.71) | — |
+| Duration | — | 6 months |
+| Color | — | dark |
+| Growth rate | — | slow |
+| Itching | — | yes |
+| Localization | — | back |
+| Feature vector | 7 similarity scores | 10 structured numeric features |
+
+Approach B produces interpretable, ML-ready features. Approach A only yields similarity scores with no semantic breakdown.
 
 **Error analysis:** Both approaches confuse df↔bkl — visually and textually similar lesions with no distinctive symptom language.
 
