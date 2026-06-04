@@ -283,10 +283,27 @@ cp .env.example .env
 
 ### Data
 
+**Option 1 — Manual download:**
+1. Go to https://www.kaggle.com/datasets/kmader/skin-cancer-mnist-ham10000
+2. Click **Download** (requires free Kaggle account)
+3. Unzip and place files so the structure looks like:
+```
+data/raw/
+├── HAM10000_metadata.csv
+├── HAM10000_images_part_1/   # ~5 GB total
+└── HAM10000_images_part_2/
+```
+4. Configure Kaggle credentials in `.env`:
 ```bash
-# Download HAM10000 from https://www.kaggle.com/datasets/kmader/skin-cancer-mnist-ham10000
-# Place HAM10000_metadata.csv + image folders in data/raw/
-python -m src.data.prepare_ham10000
+KAGGLE_USERNAME=your_username
+KAGGLE_KEY=your_api_key        # from kaggle.com → Account → API
+```
+5. Run: `python -m src.data.prepare_ham10000`
+
+**Alternative (Kaggle API):**
+```bash
+kaggle datasets download -d kmader/skin-cancer-mnist-ham10000
+unzip skin-cancer-mnist-ham10000.zip -d data/raw/
 ```
 
 ### Training
