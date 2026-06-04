@@ -12,16 +12,10 @@
 
 ### Mandatory Checks
 
-- [x] Min. 2 AI blocks combined
-- [x] Blocks meaningfully integrated (not just side-by-side)
-- [x] Multiple different data sources
-- [x] Data sources NOT from the semester (no ZH apartments, no dog breeds)
-- [x] Realistic use case
-- [x] Independent and documented
-- [x] Deployment URL working
-- [x] Screenshots included
-- [x] Execution instructions complete
-- [x] No [FILL] or [YOUR...] placeholders
+- [x] At least 2 blocks selected
+- [x] Multiple and different data sources used
+- [x] Deployment URL provided
+- [x] Required GitHub users added to repository (jasminh, bkuehnis)
 
 ---
 
@@ -160,6 +154,13 @@ See: `notebooks/05_ml_modeling.ipynb`, `notebooks/06_ablation_and_errors.ipynb`
 - **Prompt design:** System role as medical assistant, strict JSON output schema, 10 numeric/categorical fields
 
 See: `src/nlp/llm_extractor.py`, `src/nlp/embeddings.py`
+
+**Approach used:** Prompt engineering (Approach B) + transformer embeddings (Approach A)
+
+**Alternatives considered and rejected:**
+- Classical NLP (spaCy NER, regex): too brittle for free-form medical text, misses semantic nuance
+- Fine-tuned BioBERT: high overhead, requires labelled symptom data not available in HAM10000
+- RAG over medical literature: out of scope for per-request latency requirements
 
 #### Approaches & Iterations
 
